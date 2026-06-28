@@ -1,0 +1,44 @@
+name: vaults3-stack
+
+services:
+  vaults3:
+    build: .
+    ports:
+      - "9000:9000"
+
+    volumes:
+      - ./data:/data
+      - ./metadata:/metadata
+      - ./configs/vaults3.yaml:/etc/vaults3/vaults3.yaml
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+    networks:
+      - backend
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+
+    command: tunnel --no-autoupdate run
+
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+
+    restart: unless-stopped
+
+    depends_on:
+      vaults3:
+        condition: service_healthy
+
+    networks:
+      - backend
+
+networks:
+  backend:
